@@ -1,13 +1,17 @@
 import { input, select, Separator } from '@inquirer/prompts'
-import { readdirSync, mkdirSync, existsSync, rmdirSync, readFileSync } from 'fs';
+import { readdirSync, mkdirSync, existsSync, rmdirSync, rmSync } from 'fs';
+import { GetSession } from '../lib/sessions/session';
+import { SESSION_PATH } from '../constants';
 
 
 function getOptions(dirs: string[]): { name: string, value: string }[] {
     return dirs.map(d => ({ name: d, value: d }))
 }
 
-export async function getSessions(path: string) {
-    const dirs = readdirSync(path)
+
+
+export async function getSessionFromPath(): Session | undefined {
+    const dirs = readdirSync(SESSION_PATH)
 
     const sessions = getOptions(dirs)
 
@@ -34,7 +38,9 @@ export async function getSessions(path: string) {
             message: 'Select a session to remove',
             choices: sessions,
         })
-        rmdirSync(`${path}/${removeName}`)
+
+        rmSync(`${SESSION_PATH}/${removeName}`, { force: true, recursive: true })
+        return getSessionFromPath()
     }
 
     if (option === 'create') {
@@ -42,9 +48,10 @@ export async function getSessions(path: string) {
             message: "what is the session name?",
         })
         if (!existsSync(res)) {
-            console.log(path + res)
-            mkdirSync(`${path}/${res}`);
+            console.log(SESSION_PATH + res)
+            mkdirSync(`${SESSION_PATH}/${res}`);
         }
     }
-    return readFileSync(`${path}/${option}`, { encoding: "utf-8" })
+    return GetSession(option)
+
 }

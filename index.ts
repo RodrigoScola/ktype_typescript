@@ -1,93 +1,140 @@
+import path from 'node:path'
+
+
 import readline from 'readline'
 import { Menu } from './src/lib/sentences/Menu'
-import { Sentences } from './src/lib/sentences/Sentence'
-import { Sentence } from './src/lib/sentences/s2'
-import { select } from '@inquirer/prompts';
-import { getSessions } from './src/commands/sessions';
+import { Sentences } from './src/lib/sentences/Sentences'
+import { Sentence } from './src/lib/sentences/sentence'
+import { program } from 'commander'
+import { getSessionFromPath } from './src/commands/sessions'
+import { Session, GetSession, NewSession, SaveSession } from './src/lib/sessions/session'
+import { GetNextSentence, SaveEntry } from './src/lib/sessions/actSession'
+import { ParseOptions } from './src/commands/init'
 
-readline.emitKeypressEvents(process.stdin)
-process.stdin.setRawMode(true)
-
-//async function main() {
-
-
-
-const s = await getSessions(`${process.cwd()}/data/sessions`)
-
-
-const master = new Sentences([new Sentence(s)])
-
-//const master = new Sentences([
-//    new Sentence('this is the new one'),
-//    new Sentence('this is the other one that should appear'),
-//    new Sentence('this is the second to last sentence'),
-//    new Sentence('this is the last one'),
-//])
-
-const menu = new Menu()
-menu.Add(master)
-
-function getLastDelimiter(sen: string) {
-    const seps = `~!@#$%^&*()-=+[{]}\|;:'",.<>/? `
-        .split('')
-        .map((ch) => sen.lastIndexOf(ch))
-    return Math.max(...seps)
+export function replaceUnwantedCharacters(str: string) {
+    return str
+        .replaceAll('—', '-')
+        .replaceAll("“", '"')
+        .replaceAll('”', '"')
 }
 
-printLines(process.stdout.rows / 4)
-menu.Display()
 
-function printLines(amount: number) {
-    for (let i = 0; i < amount; i++) {
-        process.stdout.write('\n')
-    }
+function handleComplete(sentences: Sentences, sentence: Sentence) {
+    SaveEntry(CurrentSession!, sentence.ToEntry())
+
+    const newSen = sentences.Next()
+    sentences.DisplayStats()
+    if (newSen) sentence = newSen
+    return
+
 }
 
-process.stdin.on(
-    'keypress',
-    (
-        str: string,
-        key: {
-            sequence: string
-            name: string
-            ctrl: boolean
-            meta: boolean
-            shift: boolean
-        }
-    ) => {
-        if (key.name === 'c' && key.ctrl) {
-            process.exit()
+let CurrentSession: Session | undefined;
+
+
+
+ParseOptions(CurrentSession).then(async () => {
+    (async () => {
+
+        CurrentSession = GetSession('The-Time-Machine.txt')
+
+
+        if (!CurrentSession) {
+            CurrentSession = await getSessionFromPath()
         }
 
-        let sentence = master.Current()
-
-        menu.Refresh()
-        printLines(process.stdout.rows / 4)
-
-        if (sentence.IsComplete()) {
-            const newSen = master.Next()
-            if (newSen) sentence = newSen
-            menu.Display()
-            return
+        if (!CurrentSession) {
+            console.log("asodf")
+            throw new Error("come ojn men")
         }
+        readline.emitKeypressEvents(process.stdin)
+        process.stdin.setRawMode(true)
 
-        if (key.name === 'backspace') {
-            sentence.Remove(sentence.Length())
-            menu.Display()
-            return
-        } else if (str == '\u0017') {
-            sentence.Remove(getLastDelimiter(master.Current().Sentence()))
-        } else if (key.name === 'return') {
-            const newSen = master.Next()
-            if (newSen) sentence = newSen
-        } else {
-            sentence.Add(str)
-        }
+        process.stdin.resume()
+        console.clear()
 
-        menu.ToDisplay(sentence)
+        const lastSentence = GetNextSentence(CurrentSession).id || 0
+
+        //const master = new Sentences([ new Sentence("---", 0)])
+
+        const master = new Sentences(CurrentSession.content
+            .filter(content => content.id >= lastSentence)
+            .map(s => new Sentence(replaceUnwantedCharacters(s.value)
+
+
+
+                , s.id)))
+
+
+
+        const menu = new Menu()
+        menu.Add(master)
+
+
+        menu.ToDisplay(master)
         menu.Display()
-    }
-)
-//}
 
-//main()
+        //function printLines(amount: number) {
+        //    for (let i = 0; i < amount; i++) {
+        //        process.stdout.write('\n')
+        //    }
+        //}
+
+
+        process.stdin.on(
+            'keypress',
+            (
+                str: string,
+                key: {
+                    sequence: string
+                    name: string
+                    ctrl: boolean
+                    meta: boolean
+                    shift: boolean
+                }
+            ) => {
+                if (key.name === 'c' && key.ctrl) {
+                    process.exit()
+                }
+
+                let sentence = master.Current()
+
+                menu.Refresh()
+                menu.Display()
+                //printLines(process.stdout.rows / 4)
+
+                if (sentence.IsComplete()) {
+                    handleComplete(master, sentence)
+                    menu.ToDisplay(sentence)
+                    menu.Display()
+                    return
+                }
+
+                if (key.name === 'backspace') {
+                    sentence.Remove(sentence.Length())
+                    menu.ToDisplay(sentence)
+                    menu.Display()
+                    return
+                } else if (str == '\u0017') {
+                    //sentence.Remove(getLastDelimiter(master.Current().Sentence()))
+                } else if (key.name === 'return' && sentence.IsComplete()) {
+                    SaveEntry(CurrentSession!, sentence.ToEntry())
+                    const newSen = master.Next()
+                    if (newSen) sentence = newSen
+                    return
+                } else {
+                    if (key.name !== 'return') {
+                        sentence.Add(str)
+                    }
+                }
+                if (sentence.IsComplete()) {
+                    handleComplete(master, sentence)
+                    return
+                }
+
+                menu.ToDisplay(sentence)
+                menu.Display()
+            }
+        )
+    })()
+})

@@ -1,39 +1,32 @@
 import { colors } from '../../constants'
+import { lines } from '../display/lines'
 
-class LetterStats {
-    readonly createdAt: number
-    constructor(createdAt: number) {
-        this.createdAt = createdAt
-    }
 
-}
-
-class Letter {
+export class Letter {
     ignore: boolean
-    stats: LetterStats
+
+    readonly createdAt: number
     constructor(readonly char: string, public position: number, readonly color: string, public wrong: boolean) {
         this.ignore = false
-        this.stats = new LetterStats(Date.now())
+        this.createdAt = Date.now()
 
     }
 
     Display() {
-        process.stdout.write(this.color)
-        process.stdout.write(this.char)
-        process.stdout.write(colors.Reset)
-
+        let str = this.color + this.char + colors.Reset;
+        return str
     }
 }
 
-export class Sentence  {
+export class Sentence {
     private csen: Letter[]
     private sentence: Letter[]
-    constructor(sentence: string) {
+    constructor(sentence: string, public readonly id: number) {
         this.csen = this.ToLetters(sentence)
         this.sentence = []
     }
     ToLetters(str: string): Letter[] {
-        return str.split('').map((ch, index) => new Letter(ch, index, colors.FgBlue, false))
+        return str.split('').map((ch, index) => new Letter(ch, index, colors.FgCyan, false))
     }
     Get(index: number) {
         for (const item of this.sentence) {
@@ -76,7 +69,14 @@ export class Sentence  {
     }
 
     Sentence() {
-        return this.sentence.filter(s => !s.ignore).map(s => s.char).join("")
+        let str = "";
+        for (const char of this.sentence) {
+            if (char.ignore) {
+                continue
+            }
+            str += char.char;
+        }
+        return str
     }
     Check(str: string) {
         const last = this.GetLast()
@@ -84,60 +84,84 @@ export class Sentence  {
             return this.csen[0].char === str
         }
         const want = this.csen[last.position + 1];
-        if (!want) return false
+        if (!want || last.wrong) return false
+        const check = want.char === str && last.wrong == false
 
 
-        return want.char === str
+        //console.log(`check ->`, check)
+        //console.log(`wantchar ->`, want.char === str)
+        //console.log(`lastWrong`, this.csen[last.position])
+
+
+        return check
 
     }
     Add(char: string) {
         const pos = (this.GetLast()?.position ?? -1) + 1
         let correct = this.Check(char)
 
+
         this.sentence.push(new Letter(char, pos, correct ? colors.FgYellow : colors.FgRed, !correct))
     }
     IsComplete(): boolean {
         const last = this.GetLast();
         if (!last) return false;
-        const goodSentence = this.sentence.filter(s => !s.ignore)
 
-        if (goodSentence.length < this.csen.length) return false
+        let gsentenceLength = 0;
+        for (let i = 0; i < this.sentence.length; i++) {
+            if (!this.sentence[i].ignore) gsentenceLength++;
+        }
+
+
+
+        if (gsentenceLength < this.csen.length) return false
         //console.log(`last pos -> ${last.position}`)
         //console.log(`last c -> ${this.csen.length - 1}`)
 
-        let wr = true;
 
-        goodSentence.forEach(s => {
-            if (s.ignore) return
-
-            if (s.wrong) {
+        for (const char of this.sentence) {
+            if (char.ignore) continue
+            if (char.wrong) {
                 //        console.log(s)
-                wr = false;
+                return false
             }
-        })
-
-        //console.log(`com -> ${wr}`)
-
-
-        return wr
+        }
+        return true
+    }
+    ToEntry() {
+        return {
+            id: this.id,
+            endAt: this.GetLast()!.createdAt,
+            letters: this.SentenceRaw(),
+            startAt: this.SentenceRaw().find(s => s)!.createdAt
+        }
     }
     Display() {
+        let str = ""
         for (const char of this.sentence) {
             if (!char || char.ignore) continue
-            char.Display()
+            str += char.Display()
         }
 
         let startAt = 0
-        if (this.GetLast()) {
-            startAt = this.GetLast()!.position + 1
+        const last = this.GetLast()
+        if (last) {
+            startAt = last.position + 1
         }
         for (let i = startAt; i < this.csen.length; i++) {
             const char = this.csen[i]
-
-            char.Display()
+            str += char.Display()
 
         }
-        process.stdout.write('\n')
+
+        const cols = process.stdout.columns
+        const rows = process.stdout.rows
+
+
+
+        process.stdout.write(
+            lines.padAbove(
+                lines.padAround(str, 10, cols), rows / 3) + '\n',)
     }
 }
 

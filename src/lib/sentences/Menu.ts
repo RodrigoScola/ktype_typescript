@@ -27,7 +27,7 @@ export class Menu {
             this.candidate = undefined
             return
         }
-        this.displays[this.position].Display()
+//        this.displays[this.position].Display()
     }
 
 }

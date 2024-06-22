@@ -1,4 +1,5 @@
 
+
 export const colors = {
      Reset: '\x1b[0m',
      Bright: '\x1b[1m',
@@ -26,3 +27,4 @@ export const colors = {
      BgWhite: '\x1b[47m',
      BgGray: '\x1b[100m',
 }
+export const SESSION_PATH = `${process.cwd()}/data/sessions` as const
