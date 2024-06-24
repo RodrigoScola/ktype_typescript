@@ -20,7 +20,7 @@ export function replaceUnwantedCharacters(str: string) {
 
 
 function handleComplete(sentences: Sentences, sentence: Sentence) {
-    SaveEntry(CurrentSession!, sentence.ToEntry())
+   SaveEntry(CurrentSession!, sentence.ToEntry())
 
     const newSen = sentences.Next()
     sentences.DisplayStats()
@@ -33,8 +33,13 @@ let CurrentSession: Session | undefined;
 
 
 
-ParseOptions(CurrentSession).then(async () => {
-    (async () => {
+ParseOptions(CurrentSession).then(async (res: boolean) => {
+    (async (shouldRun: boolean) => {
+
+        if (shouldRun === false) {
+
+            return
+        }
 
         CurrentSession = GetSession('The-Time-Machine.txt')
 
@@ -52,19 +57,15 @@ ParseOptions(CurrentSession).then(async () => {
 
         process.stdin.resume()
         console.clear()
-
         const lastSentence = GetNextSentence(CurrentSession).id || 0
 
         //const master = new Sentences([ new Sentence("---", 0)])
 
         const master = new Sentences(CurrentSession.content
-            .filter(content => content.id >= lastSentence)
-            .map(s => new Sentence(replaceUnwantedCharacters(s.value)
+            .filter(content => content.id - 1 > lastSentence)
+            .map(s => new Sentence(replaceUnwantedCharacters(s.value) , s.id)))
 
-
-
-                , s.id)))
-
+//        const master = new Sentences([new Sentence("Hello there good job", 0)])
 
 
         const menu = new Menu()
@@ -136,5 +137,5 @@ ParseOptions(CurrentSession).then(async () => {
                 menu.Display()
             }
         )
-    })()
+    })(res)
 })

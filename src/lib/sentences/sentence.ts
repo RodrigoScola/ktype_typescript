@@ -150,16 +150,14 @@ export class Sentence {
         }
         for (let i = startAt; i < this.csen.length; i++) {
             const char = this.csen[i]
-            str += char.Display()
+            if(char) str += char.Display()
 
         }
 
         const cols = process.stdout.columns
         const rows = process.stdout.rows
 
-
-
-        process.stdout.write(
+process.stdout.write(
             lines.padAbove(
                 lines.padAround(str, 10, cols), rows / 3) + '\n',)
     }
